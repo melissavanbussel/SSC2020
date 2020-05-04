@@ -123,6 +123,27 @@ train_augmented <- train_augmented %>%
 test_augmented <- test_augmented %>% 
   left_join(to_join)
 
+# Add index variable for the time that the original data were scraped
+time_seq <- seq(from = min(train_augmented$posixct), 
+                to = max(c(max(train_augmented$time_rating, na.rm = TRUE), 
+                           max(test_augmented$time_rating, na.rm = TRUE))), 
+                by = "hour")
+time_seq <- data.frame(posixct = time_seq, time_index = 1:length(time_seq))
+
+# Bind the time index to train_augmented and test_augmented 
+train_augmented <- train_augmented %>% 
+  left_join(time_seq)
+test_augmented <- test_augmented %>% 
+  left_join(time_seq)
+
+# Add index variable for the time that the "current_ratings" were scraped
+train_augmented <- cbind(train_augmented, temp = round(train_augmented$time_rating[1], "hour")) %>% 
+  left_join(data.frame(temp = time_seq$posixct, time_rating_index = 1:length(time_seq$time_index)))
+train_augmented <- train_augmented[, -c(which(names(train_augmented) == "temp"))]
+test_augmented <- cbind(test_augmented, temp = round(test_augmented$time_rating[1], "hour")) %>% 
+  left_join(data.frame(temp = time_seq$posixct, time_rating_index = 1:length(time_seq$time_index)))
+test_augmented <- test_augmented[, -c(which(names(test_augmented) == "temp"))]
+
 # Save results
 save(train_augmented, file = "train_augmented.RDa")
 save(test_augmented, file = "test_augmented.RDa")
