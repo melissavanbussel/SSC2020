@@ -147,3 +147,49 @@ test_augmented <- test_augmented[, -c(which(names(test_augmented) == "temp"))]
 # Save results
 save(train_augmented, file = "train_augmented.RDa")
 save(test_augmented, file = "test_augmented.RDa")
+
+# Add the length of the most recent podcast 
+load("pod_length.RDa")
+
+# Convert "54 min" and "1 hr 16 min" and "1 hr" formats to number of minutes
+for (i in 1:nrow(pod_length)) {
+  if (!is.na(pod_length$pod_length[i])) {
+    # If it didn't scrape properly, just get rid of it 
+    if (nchar(pod_length$pod_length[i]) > 15) {
+      pod_length$pod_length[i] <- NA 
+    }
+    if (grepl(pattern = "hr", x = pod_length$pod_length[i])) {
+      if (grepl(pattern = "min", x = pod_length$pod_length[i])) {
+        # Format example: "1 hr 16 min"
+        temp <- strsplit(pod_length$pod_length[i], split = " hr ")
+        hours_to_mins <- as.numeric(temp[[1]][1]) * 60 
+        minutes <- as.numeric(gsub(pattern = " min", 
+                                   replacement = "",
+                                   x = temp[[1]][2]))
+        pod_length$pod_length[i] <- hours_to_mins + minutes
+      } else {
+        # Format example: "1 hr"
+        # Potential problem: "2 hrs"?? 
+        pod_length$pod_length[i] <- as.numeric(gsub(pattern = " hr", 
+                                                    replacement = "", 
+                                                    x = pod_length$pod_length[i]))
+      }
+    } else {
+      # Format example: "54 min" 
+      pod_length$pod_length[i] <- as.numeric(gsub(pattern = " min", 
+                                                  replacement = "", 
+                                                  x = pod_length$pod_length[i]))
+    }
+  }
+}
+pod_length$pod_length <- as.numeric(pod_length$pod_length)
+
+# Bind the number of minutes of most recent podcast to train_augmented and test_augmented
+train_augmented <- train_augmented %>% 
+  left_join(pod_length[, c("url", "pod_length")])
+test_augmented <- test_augmented %>% 
+  left_join(pod_length[, c("url", "pod_length")])
+
+# Save results 
+save(train_augmented, file = "train_augmented.RDa")
+save(test_augmented, file = "test_augmented.RDa")
